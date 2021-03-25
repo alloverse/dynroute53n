@@ -1,8 +1,10 @@
 #!/bin/bash
 
+set -x
+
 TMPFILE=/tmp/u53tempfile
 TMPFILE_URI="file://$TMPFILE"
-AWS=/usr/bin/aws
+AWS=/usr/local/bin/aws
 
 function try  {
     eval $*

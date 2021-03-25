@@ -1,11 +1,16 @@
-FROM ubuntu:20.04
+FROM amazonlinux:2
 LABEL Name=dynroute53n Version=0.0.1
 
-RUN apt-get -y update \
-    && DEBIAN_FRONTEND="noninteractive" apt-get install -y tzdata awscli jq curl \
-    && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+RUN yum  update -y \
+    && yum install -y jq curl unzip sudo
 
-WORKDIR /app
-ADD . /app/
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
+    && unzip awscliv2.zip \
+    && sudo ./aws/install \
+    && rm -rf *.zip aws
+
+WORKDIR /aws
+ADD . /aws/
+
 
 CMD bash update-route53.bash
