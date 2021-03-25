@@ -14,11 +14,11 @@ function try  {
     fi
 }
 
-$AWS configure list --debug
-
 try rm -f $TMPFILE
 
 try curl -s http://169.254.170.2/v2/metadata -o $TMPFILE 
+
+cat $TMPFILE
 
 ECS_CLUSTER=$(cat $TMPFILE | jq -r '.Cluster'|cut -d/ -f2)
 ECS_TASK=$(cat $TMPFILE | jq -r '.TaskARN'|cut -d/ -f2)
@@ -28,6 +28,8 @@ if [[ -z "${ECS_CLUSTER}" ]]  || [[ -z "${ECS_TASK}" ]] ; then
     exit 1
 fi
 
+echo "Querying task ${ECS_TASK} in ${ECS_CLUSTER}..."
+
 try $AWS ecs describe-tasks --tasks $ECS_TASK --cluster $ECS_CLUSTER  > $TMPFILE
 ENI_ID=$(cat $TMPFILE | jq -r '.tasks[].attachments[].details[] | select(.name =="networkInterfaceId") | .value ')
 
@@ -36,6 +38,8 @@ if [[ -z "${ENI_ID}" ]] ; then
     echo "Missing ENI ID, exiting..." 
     exit 1
 fi
+
+echo "Querying ENI ${ENI_ID}..."
 
 try $AWS ec2 describe-network-interfaces  --filters Name=network-interface-id,Values=$ENI_ID > $TMPFILE
 
@@ -53,6 +57,8 @@ if [[ -z "${R53_HOST}" ]] || [[ -z "${R53_ZONEID}" ]]  ; then
     echo "Missing required parameters to update Route53, exiting..." 
     exit 1
 fi
+
+echo "Found public IP ${R53_PUBLIC_IP}, now updating ${R53_HOST} in ${R53_ZONEID}..."
 
 
 cat << EOF > $TMPFILE
