@@ -14,6 +14,8 @@ function try  {
     fi
 }
 
+$AWS configure list --debug
+
 try rm -f $TMPFILE
 
 try curl -s http://169.254.170.2/v2/metadata -o $TMPFILE 
