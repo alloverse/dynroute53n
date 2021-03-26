@@ -30,12 +30,94 @@ Your ECS Service needs these IAM permissions:
 * `ecs:DescribeTasks`
 * `route53:ChangeResourceRecordSets`
 
-Luckilly, all of these are included in the [default service-linked IAM 
-role](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/using-service-linked-roles.html).
+In Terraform, that looks something like this:
+
+```terraform
+
+resource "aws_iam_role" "ecs_task_role" {
+  name = "asdfservice-task-role"
+  assume_role_policy = data.aws_iam_policy_document.ecs_task_role_assume_policy.json
+}
+
+data "aws_iam_policy_document" "ecs_task_role_assume_policy" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type = "Service"
+      identifiers = ["ecs-tasks.amazonaws.com",]
+    }
+  }
+}
+
+data "aws_iam_policy_document" "route53policy" {
+  statement {
+    effect  = "Allow"
+    actions = [
+      "ec2:DescribeNetworkInterfaces", 
+      "ecs:DescribeTasks"
+    ]
+    resources = [ "*" ]
+  }
+
+  statement {
+    effect  = "Allow"
+    actions = [ "route53:ChangeResourceRecordSets" ]
+    resources = [ "arn:aws:route53:::hostedzone/${var.prod_zone.zone_id}" ]
+  }
+}
+
+resource "aws_iam_policy" "ecs_task_role_policy" {
+  name   = "asdfservice-task-role-policy"
+  policy = data.aws_iam_policy_document.route53policy.json
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_task_role_policy" {
+  role       = aws_iam_role.ecs_task_role.id
+  policy_arn = aws_iam_policy.ecs_task_role_policy.arn
+}
+
+## finally, the task definition itself
+
+resource "aws_ecs_task_definition" "asdfservice" {
+  ...
+  task_role_arn = aws_iam_role.ecs_task_role.arn
+  ...
+}
+
+```
 
 ### Environment variables
 
-In your container description, make sure to set:
+In your container definition, make sure to set:
 
 * `$R53_HOST` to the hostname you want for the container
 * `$R53_ZONEID` to the zone you want to put that hostname in
+
+Your container definition template might look something like this:
+
+```json
+    {
+        "essential": true,
+        "memory": 100,
+        "name": "dynroute53n",
+        "cpu": 256,
+        "image": "alloverse/dynroute53n:latest",
+        "environment": [
+            { "name": "R53_HOST", "value": "${shortname}.places.alloverse.com" },
+            { "name": "R53_ZONEID", "value": "${zoneid}" }
+        ],
+        "requiresCompatibilities": [
+            "FARGATE"
+        ],
+        "logConfiguration": {
+            "logDriver": "awslogs",
+            "options": {
+                "awslogs-group": "asdfservice",
+                "awslogs-region": "eu-north-1",
+                "awslogs-stream-prefix": "dynroute53n-${shortname}"
+            }
+        }
+    }
+```
