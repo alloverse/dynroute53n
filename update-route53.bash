@@ -21,7 +21,7 @@ try curl -s http://169.254.170.2/v2/metadata -o $TMPFILE
 cat $TMPFILE
 
 ECS_CLUSTER=$(cat $TMPFILE | jq -r '.Cluster'|cut -d/ -f2)
-ECS_TASK=$(cat $TMPFILE | jq -r '.TaskARN'|cut -d/ -f2)
+ECS_TASK=$(cat $TMPFILE | jq -r '.TaskARN'|cut -d/ -f3)
 
 if [[ -z "${ECS_CLUSTER}" ]]  || [[ -z "${ECS_TASK}" ]] ; then
     echo "Missing Task or Cluster ID, exiting..." 
